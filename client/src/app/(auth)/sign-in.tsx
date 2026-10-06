@@ -1,13 +1,12 @@
 import { View, Text, TextInput, Pressable, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { Link, useRouter, type Href } from 'expo-router';
-// import { useSignUp, useAuth } from '@clerk/expo';
+// import { useSignIn } from '@clerk/expo';
 import { useState } from 'react';
-import { usePostHog } from 'posthog-react-native';
 import { SafeAreaView as RNSafeAreaView } from 'react-native-safe-area-context';
+import { usePostHog } from 'posthog-react-native';
 
-const SignUp = () => {
-    const { signUp, errors, fetchStatus }: any = {} // useSignUp();
-    const { isSignedIn }: any = {} // useAuth();
+const SignIn = () => {
+    const { signIn, errors, fetchStatus }: any = {} //useSignIn();
     const router = useRouter();
     // const posthog = usePostHog();
 
@@ -21,38 +20,27 @@ const SignUp = () => {
 
     // Client-side validation
     const emailValid = emailAddress.length === 0 || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailAddress);
-    const passwordValid = password.length === 0 || password.length >= 8;
-    const formValid = emailAddress.length > 0 && password.length >= 8 && emailValid;
+    const passwordValid = password.length > 0;
+    const formValid = emailAddress.length > 0 && password.length > 0 && emailValid;
 
     const handleSubmit = async () => {
         if (!formValid) return;
 
-        const { error } = await signUp?.password({
+        const { error } = await signIn?.password({
             emailAddress,
             password,
         });
 
         if (error) {
             console.error(JSON.stringify(error, null, 2));
-            // posthog.capture('user_sign_up_failed', {
-            //     error_message: error.message,
+            // posthog.capture('user_sign_in_failed', {
+            //     error_message: error?.message,
             // });
             return;
         }
 
-        // Send verification email
-        if (!error) {
-            await signUp?.verifications.sendEmailCode();
-        }
-    };
-
-    const handleVerify = async () => {
-        await signUp?.verifications.verifyEmailCode({
-            code,
-        });
-
-        if (signUp?.status === 'complete') {
-            await signUp?.finalize({
+        if (signIn?.status === 'complete') {
+            await signIn?.finalize({
                 navigate: ({ session, decorateUrl }: any) => {
                     if (session?.currentTask) {
                         console.log(session?.currentTask);
@@ -61,9 +49,58 @@ const SignUp = () => {
 
                     // posthog.identify(emailAddress, {
                     //     $set: { email: emailAddress },
-                    //     $set_once: { sign_up_date: new Date().toISOString() },
+                    //     $set_once: { first_sign_in_date: new Date().toISOString() },
                     // });
-                    // posthog.capture('user_signed_up', { email: emailAddress });
+                    // posthog.capture('user_signed_in', { email: emailAddress });
+
+                    const url = decorateUrl('/(tabs)');
+                    if (url.startsWith('http')) {
+                        // Only use window.location on web platform
+                        if (typeof window !== 'undefined' && window.location) {
+                            window.location.href = url;
+                        } else {
+                            // On native, just use router navigation
+                            router.replace('/(tabs)' as Href);
+                        }
+                    } else {
+                        router.replace(url as Href);
+                    }
+                },
+            });
+        } else if (signIn?.status === 'needs_second_factor') {
+            // Handle MFA if needed (not implemented in this basic flow)
+            console.log('MFA required');
+        } else if (signIn?.status === 'needs_client_trust') {
+            // Send email code for client trust verification
+            const emailCodeFactor = signIn?.supportedSecondFactors.find(
+                (factor : any) => factor?.strategy === 'email_code'
+            );
+
+            if (emailCodeFactor) {
+                await signIn?.mfa.sendEmailCode();
+            }
+        } else {
+            console.error('Sign-in attempt not complete:', signIn);
+        }
+    };
+
+    const handleVerify = async () => {
+        await signIn?.mfa.verifyEmailCode({ code });
+
+        if (signIn?.status === 'complete') {
+            await signIn?.finalize({
+                navigate: ({ session, decorateUrl }: any) => {
+                    if (session?.currentTask) {
+                        console.log(session?.currentTask);
+                        return;
+                    }
+
+                    // Track successful sign-in after verification
+                    // posthog.identify(emailAddress, {
+                    //     $set: { email: emailAddress },
+                    //     $set_once: { first_sign_in_date: new Date().toISOString() },
+                    // });
+                    // posthog.capture('user_signed_in', { email: emailAddress });
 
                     const url = decorateUrl('/(tabs)');
                     if (url.startsWith('http')) {
@@ -80,21 +117,12 @@ const SignUp = () => {
                 },
             });
         } else {
-            console.error('Sign-up attempt not complete:', signUp);
+            console.error('Sign-in attempt not complete:', signIn);
         }
     };
 
-    // Don't show anything if already signed in or sign-up is complete
-    if (signUp?.status === 'complete' || isSignedIn) {
-        return null;
-    }
-
-    // Show verification screen if email needs verification
-    if (
-        signUp?.status === 'missing_requirements' &&
-        signUp?.unverifiedFields.includes('email_address') &&
-        signUp?.missingFields.length === 0
-    ) {
+    // Show verification screen if client trust is needed
+    if (signIn?.status === 'needs_client_trust') {
         return (
             <RNSafeAreaView className="auth-safe-area">
                 <KeyboardAvoidingView
@@ -118,9 +146,9 @@ const SignUp = () => {
                                         <Text className="auth-wordmark-sub">Smart Plant Care</Text>
                                     </View>
                                 </View>
-                                <Text className="auth-title">Verify your email</Text>
+                                <Text className="auth-title">Verify your identity</Text>
                                 <Text className="auth-subtitle">
-                                    We sent a verification code to {emailAddress}
+                                    We sent a verification code to your email
                                 </Text>
                             </View>
 
@@ -150,16 +178,24 @@ const SignUp = () => {
                                         disabled={!code || fetchStatus === 'fetching'}
                                     >
                                         <Text className="auth-button-text">
-                                            {fetchStatus === 'fetching' ? 'Verifying...' : 'Verify Email'}
+                                            {fetchStatus === 'fetching' ? 'Verifying...' : 'Verify'}
                                         </Text>
                                     </Pressable>
 
                                     <Pressable
                                         className="auth-secondary-button"
-                                        onPress={() => signUp?.verifications.sendEmailCode()}
+                                        onPress={() => signIn?.mfa.sendEmailCode()}
                                         disabled={fetchStatus === 'fetching'}
                                     >
                                         <Text className="auth-secondary-button-text">Resend Code</Text>
+                                    </Pressable>
+
+                                    <Pressable
+                                        className="auth-secondary-button"
+                                        onPress={() => signIn?.reset()}
+                                        disabled={fetchStatus === 'fetching'}
+                                    >
+                                        <Text className="auth-secondary-button-text">Start Over</Text>
                                     </Pressable>
                                 </View>
                             </View>
@@ -170,7 +206,7 @@ const SignUp = () => {
         );
     }
 
-    // Main sign-up form
+    // Main sign-in form
     return (
         <RNSafeAreaView className="auth-safe-area">
             <KeyboardAvoidingView
@@ -194,13 +230,13 @@ const SignUp = () => {
                                     <Text className="auth-wordmark-sub">Smart Plant Care</Text>
                                 </View>
                             </View>
-                            <Text className="auth-title">Create your account</Text>
+                            <Text className="auth-title">Welcome back</Text>
                             <Text className="auth-subtitle">
-                                Start tracking your plants with the help of AgriGuide and get personalized care recommendations
+                                Sign in to continue managing your plants
                             </Text>
                         </View>
 
-                        {/* Sign-Up Form */}
+                        {/* Sign-In Form */}
                         <View className="auth-card">
                             <View className="auth-form">
                                 <View className="auth-field">
@@ -219,8 +255,8 @@ const SignUp = () => {
                                     {emailTouched && !emailValid && (
                                         <Text className="auth-error">Please enter a valid email address</Text>
                                     )}
-                                    {errors?.fields.emailAddress && (
-                                        <Text className="auth-error">{errors?.fields.emailAddress.message}</Text>
+                                    {errors?.fields.identifier && (
+                                        <Text className="auth-error">{errors?.fields.identifier.message}</Text>
                                     )}
                                 </View>
 
@@ -229,21 +265,18 @@ const SignUp = () => {
                                     <TextInput
                                         className={`auth-input ${passwordTouched && !passwordValid && 'auth-input-error'}`}
                                         value={password}
-                                        placeholder="Create a strong password"
+                                        placeholder="Enter your password"
                                         placeholderTextColor="rgba(0, 0, 0, 0.4)"
                                         secureTextEntry
                                         onChangeText={setPassword}
                                         onBlur={() => setPasswordTouched(true)}
-                                        autoComplete="password-new"
+                                        autoComplete="password"
                                     />
                                     {passwordTouched && !passwordValid && (
-                                        <Text className="auth-error">Password must be at least 8 characters</Text>
+                                        <Text className="auth-error">Password is required</Text>
                                     )}
                                     {errors?.fields.password && (
                                         <Text className="auth-error">{errors?.fields.password.message}</Text>
-                                    )}
-                                    {!passwordTouched && (
-                                        <Text className="auth-helper">Minimum 8 characters required</Text>
                                     )}
                                 </View>
 
@@ -253,24 +286,21 @@ const SignUp = () => {
                                     disabled={!formValid || fetchStatus === 'fetching'}
                                 >
                                     <Text className="auth-button-text">
-                                        {fetchStatus === 'fetching' ? 'Creating Account...' : 'Create Account'}
+                                        {fetchStatus === 'fetching' ? 'Signing In...' : 'Sign In'}
                                     </Text>
                                 </Pressable>
                             </View>
                         </View>
 
-                        {/* Sign-In Link */}
+                        {/* Sign-Up Link */}
                         <View className="auth-link-row">
-                            <Text className="auth-link-copy">Already have an account?</Text>
-                            <Link href="/(auth)/sign-in" asChild>
+                            <Text className="auth-link-copy">Don't have an account?</Text>
+                            <Link href="/(auth)/sign-up" asChild>
                                 <Pressable>
-                                    <Text className="auth-link">Sign In</Text>
+                                    <Text className="auth-link">Create Account</Text>
                                 </Pressable>
                             </Link>
                         </View>
-
-                        {/* Required for Clerk's bot protection */}
-                        <View nativeID="clerk-captcha" />
                     </View>
                 </ScrollView>
             </KeyboardAvoidingView>
@@ -278,4 +308,4 @@ const SignUp = () => {
     );
 };
 
-export default SignUp;
+export default SignIn;
