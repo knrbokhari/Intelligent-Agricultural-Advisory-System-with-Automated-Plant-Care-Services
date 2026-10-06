@@ -1,55 +1,82 @@
 {
   "name": "api",
+  "version": "0.0.1",
+  "description": "",
+  "author": "",
   "private": true,
-  "packageManager": "npm@11.6.0",
-  "type": "module",
-  "engines": {
-    "node": "^22.18.0 || >=24.11.0"
-  },
+  "license": "UNLICENSED",
   "scripts": {
-    "build": "tsdown",
-    "composer:deploy": "prisma deploy module.ts",
-    "composer:dev": "prisma dev module.ts",
-    "contract:emit": "prisma contract emit",
-    "db:init": "prisma db init",
-    "db:update": "prisma db update",
-    "db:verify": "prisma db verify",
-    "deploy": "npm run build && npm run composer:deploy",
-    "dev": "tsx watch src/main.ts",
-    "dev:composer": "npm run build && npm run composer:dev",
-    "migrate": "prisma db migrate",
-    "migration:plan": "prisma migration plan",
-    "migration:show": "prisma migration show",
-    "migration:status": "prisma migration status",
-    "start": "node dist/server.mjs"
+    "build": "nest build",
+    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
+    "start": "nest start",
+    "start:dev": "nest start --watch",
+    "start:debug": "nest start --debug --watch",
+    "start:prod": "node dist/main",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:studio": "prisma studio",
+    "db:up": "docker compose up -d postgres",
+    "db:down": "docker compose down",
+    "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:cov": "jest --coverage",
+    "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
+    "test:e2e": "jest --config ./test/jest-e2e.json"
   },
   "dependencies": {
-    "@nestjs/common": "^11.1.17",
-    "@nestjs/core": "^11.1.17",
-    "@nestjs/platform-express": "^11.1.17",
-    "@prisma/composer": "0.24.0",
-    "@prisma/composer-prisma-cloud": "0.24.0",
-    "@prisma/orm-postgres": "8.0.0-rc.12",
-    "alchemy": "2.0.0-beta.78",
+    "@nestjs/common": "^11.0.1",
+    "@nestjs/core": "^11.0.1",
+    "@nestjs/platform-express": "^11.0.1",
+    "@prisma/adapter-pg": "^7.10.0",
+    "@prisma/client": "^7.10.0",
+    "dotenv": "^18.0.5",
+    "pg": "^8.23.1",
     "reflect-metadata": "^0.2.2",
-    "rxjs": "^7.8.2",
-    "temporal-polyfill": "^1.0.4"
+    "rxjs": "^7.8.1"
   },
   "devDependencies": {
-    "@prisma/dev": "0.25.2",
-    "@types/node": "^25.6.2",
-    "prisma": "8.0.0-rc.18",
-    "tsdown": "^0.22.14",
-    "tsx": "^4.21.0",
-    "typescript": "^5.9.3"
+    "@eslint/eslintrc": "^3.2.0",
+    "@eslint/js": "^9.18.0",
+    "@nestjs/cli": "^11.0.0",
+    "@nestjs/schematics": "^11.0.0",
+    "@nestjs/testing": "^11.0.1",
+    "@types/express": "^5.0.0",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^24.0.0",
+    "@types/pg": "^8.23.1",
+    "@types/supertest": "^7.0.0",
+    "eslint": "^9.18.0",
+    "eslint-config-prettier": "^10.0.1",
+    "eslint-plugin-prettier": "^5.2.2",
+    "globals": "^17.0.0",
+    "jest": "^30.0.0",
+    "prettier": "^3.4.2",
+    "prisma": "^7.10.0",
+    "source-map-support": "^0.5.21",
+    "supertest": "^7.0.0",
+    "ts-jest": "^29.2.5",
+    "ts-loader": "^9.5.2",
+    "ts-node": "^10.9.2",
+    "tsconfig-paths": "^4.2.0",
+    "typescript": "^5.7.3",
+    "typescript-eslint": "^8.20.0"
   },
-  "overrides": {
-    "effect": "4.0.0-rc.115",
-    "@effect/platform-bun": "4.0.0-rc.115",
-    "@effect/platform-node": "4.0.0-rc.115",
-    "@effect/platform-node-shared": "4.0.0-rc.115",
-    "@effect/sql-d1": "4.0.0-rc.115",
-    "@effect/sql-sqlite-do": "4.0.0-rc.115",
-    "@effect/vitest": "4.0.0-rc.115"
+  "jest": {
+    "moduleFileExtensions": [
+      "js",
+      "json",
+      "ts"
+    ],
+    "rootDir": "src",
+    "testRegex": ".*\\.spec\\.ts$",
+    "transform": {
+      "^.+\\.(t|j)s$": "ts-jest"
+    },
+    "collectCoverageFrom": [
+      "**/*.(t|j)s"
+    ],
+    "coverageDirectory": "../coverage",
+    "testEnvironment": "node"
   }
 }
