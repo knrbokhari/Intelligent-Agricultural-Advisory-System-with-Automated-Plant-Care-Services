@@ -16,6 +16,11 @@ This is an [Expo](https://expo.dev) project created with [`create-expo-app`](htt
    npx expo start
    ```
 
+The client API layer uses `http://localhost:3000` for iOS and web, and
+`http://10.0.2.2:3000` for the Android emulator. To use a physical device or
+another server, copy `.env.example` to `.env` and set `EXPO_PUBLIC_API_URL` to
+the server's reachable LAN URL.
+
 In the output, you'll find options to open the app in a
 
 - [development build](https://docs.expo.dev/develop/development-builds/introduction/)

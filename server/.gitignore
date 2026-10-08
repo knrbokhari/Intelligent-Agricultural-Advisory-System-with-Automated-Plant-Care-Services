@@ -7,3 +7,7 @@ node_modules
 .windsurf
 .agents
 .claude
+
+dist
+/dist
+./dist
